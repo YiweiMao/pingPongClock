@@ -28,7 +28,7 @@ Background Animation Modes:
 
 Future Improvements:
 - Use a hardware RTC rather than use software
-- Implement scolling text (https://github.com/PlanetaryMotion/pingPongBallClock)[https://github.com/PlanetaryMotion/pingPongBallClock]
+- Implement scolling text (https://github.com/PlanetaryMotion/pingPongBallClock)
 - Use FastLED colour palettes
 - Attach light sensor and auto-adjust FastLED brightness
 - Attach PIR motion sensor and turn on display when there is someone to look at it

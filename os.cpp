@@ -6,9 +6,9 @@
 */
 
 #include <Arduino.h>
-#include "os.hpp"
+#include "os.h"
 
-#define _TASK_LENGTH 32 // power of 2 <= 64
+#define _TASK_LENGTH 64 // power of 2 <= 64
 #define _SYSTEM_TIME() micros()
 #define MAX_SCHEDULE 1000000000U // 100 s
 #define _INCREMENT(var) var = (var + 1) & (_TASK_LENGTH - 1)
@@ -104,6 +104,7 @@ void run() {
     }
 }
 
+// lower power mode. untested
 void dream(short hrs, short mins, short secs) {
     #if defined(TEENSY)
     //Set RTC alarm wake up in (hours, minutes, seconds)
@@ -122,8 +123,8 @@ void initBlink(){
     run_later(toggleBlink,0);
 }
 
+#define BUILTIN_LED_TOGGLE_TIME_MS 500 
 void toggleBlink() {
-    short toggle_delay = 250; // ms
-    run_later(toggleBlink,toggle_delay);
+    run_later(toggleBlink,BUILTIN_LED_TOGGLE_TIME_MS);
     digitalWrite(LED_BUILTIN,!digitalRead(LED_BUILTIN));
 }

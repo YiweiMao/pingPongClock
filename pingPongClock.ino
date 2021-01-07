@@ -19,6 +19,7 @@
     - 'T': Single colour time mode
     - 'R': Scrolling rainbow time mode
     - 'N': No time
+    - 'C': Cycle through all digits 0--9999 quickly
     - is_slanted: Option to use slanted digits or original digits (from https://www.instructables.com/Ping-Pong-Ball-LED-Clock/)
 
     Background Animation Modes:
@@ -39,7 +40,6 @@
     - Connect to Wifi (e.g. using an ESP32)
 */
 
-#include "os.h"
 #include <FastLED.h>
 #include <RTClib.h>   // Adafruit RTClib
 
@@ -58,22 +58,23 @@ CRGB leds[NUM_LEDS];
 #define _FRAME_TIME_MS    1000/REFRESH_RATE_HZ
 
 // Global variables
-char mode       = 'N';  // 'T' time, 'R' rainbow time, 'N' no op (time doesn't show)
+char mode       = 'R';  // 'T' time, 'R' rainbow time, 'N' no op (time doesn't show), 'C' cycle through all digits
 bool is_slant   = false;
 DateTime now;           // time record
 
 // Background
-char bg_palette = 'F'; // 'R' rainbow, 'B' black, 'T' twinkle, 'F' fireworks, 'W' rain, 'H' firepit
+char bg_palette = 'B'; // 'R' rainbow, 'B' black, 'T' twinkle, 'F' fireworks, 'W' rain, 'H' firepit
 CHSV bg_colour( 64, 255, 190);
 int  bg_counter = 0;
 
 // Foreground colour
 CRGB fg_colour  = CRGB::White;
+int cycle_counter = 0; // for displaying all digits quickly 0--9999
 
 CRGB fg_palette(int indx) {
   if(indx < 0 && indx >= NUM_LEDS)
     return CRGB::Black;
-  if(mode == 'R') {
+  if(mode == 'R' || mode == 'C') {
     return CHSV((bg_colour.hue+indx)%256,bg_colour.sat,bg_colour.val);
   }
   return fg_colour;
@@ -160,7 +161,7 @@ void disp_num(int num, int offset = 0) {
 
 void disp_time(int hour, int min, int sec) {
 
-  if(mode == 'R') { // rainbow text
+  if(mode == 'R' || mode == 'C') { // rainbow text
     if(bg_counter < REFRESH_RATE_HZ/4)
       bg_counter++;
     else {
@@ -433,12 +434,16 @@ void update_LEDs() {
   else if(mode == 'N') { // no operation
     FastLED.show();
   }
+  else if(mode == 'C') { // cycle through all digits
+    disp_time(cycle_counter/100,cycle_counter%100,0);
+    cycle_counter++;
+    if(cycle_counter == 10000)
+      cycle_counter = 0;
+    FastLED.show();
+  }
   else {
     FastLED.clear();
   }
-
-  // update LEDs at the REFRESH_RATE_HZ
-  run_later(update_LEDs,_FRAME_TIME_MS);
 }
 
 
@@ -450,9 +455,6 @@ void update_LEDs() {
 
 void setup()
 {
-  initOS();
-  initBlink(); // toggle built in LED. Visual indication of the OS working.
-
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
   // limit my draw to 1A at 5v of power draw
   FastLED.setMaxPowerInVoltsAndMilliamps(5,500); 
@@ -461,21 +463,14 @@ void setup()
   FastLED.show();
 
   // This line sets the RTC with an explicit date & time, for example to set
-  // January 21, 2014 at 3am you would call:
-  rtc.adjust(DateTime(2021, 1, 05, 13, 37, 0));
+  // January 5, 2021 at 1:37pm you would call:
+  // rtc.adjust(DateTime(2021, 1, 05, 13, 37, 0));
   // Note: F() grabs constants from program memory (flash) rather than RAM
-  //rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
-
-  // start the LEDs task immediately
-  run_later(update_LEDs,0);
+  rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
 }
 
 void loop(){
 
-  /*
-  This runs tasks placed into the OS task queue. LEDs are updated at the REFRESH_RATE_HZ in the background
-  and you have the chance to do other tasks in the meantime and have control over the timing. (no delay() used)
-  Note: while LEDs are updating, FastLED temporarily turns off interrupts which could mess with Serial receive. 
-  */
-  run();
+  update_LEDs();
+  FastLED.delay(_FRAME_TIME_MS);
 }

@@ -58,17 +58,17 @@ CRGB leds[NUM_LEDS];
 #define _FRAME_TIME_MS    1000/REFRESH_RATE_HZ
 
 // Global variables
-char mode       = 'R';  // 'T' time, 'R' rainbow time, 'N' no op (time doesn't show)
+char mode       = 'N';  // 'T' time, 'R' rainbow time, 'N' no op (time doesn't show)
 bool is_slant   = false;
 DateTime now;           // time record
 
 // Background
-char bg_palette = 'B'; // 'R' rainbow, 'B' black, 'T' twinkle, 'F' fireworks, 'W' rain, 'H' firepit
-CHSV bg_colour( 0, 255, 127);
+char bg_palette = 'F'; // 'R' rainbow, 'B' black, 'T' twinkle, 'F' fireworks, 'W' rain, 'H' firepit
+CHSV bg_colour( 64, 255, 190);
 int  bg_counter = 0;
 
 // Foreground colour
-CRGB fg_colour  = CRGB::Teal;
+CRGB fg_colour  = CRGB::White;
 
 CRGB fg_palette(int indx) {
   if(indx < 0 && indx >= NUM_LEDS)
@@ -228,7 +228,7 @@ void bg_twinkle() {
   }
 }
 
-#define MAX_RAINDROPS 8
+#define MAX_RAINDROPS 16
 struct rain_t {
   int pos       = -1; // first row position
   int stage     = 0;
@@ -246,10 +246,11 @@ void bg_rain() {
     }
   }
 
-  if(random8() < 128 && empty_slot != -1) {
+  if(random8() < 200 && empty_slot != -1) {
     raindrops[empty_slot].pos       = random8(3,21); // 3--20
     raindrops[empty_slot].stage     = 1;
-    raindrops[empty_slot].lightning = random8(0,11)/10;  // 0--1 with 1 happening ~9%
+    raindrops[empty_slot].lightning = random8(0,20)/19;  // 0--1 with 1 happening ~5%
+    raindrops[empty_slot].prev_pos[0] = raindrops[empty_slot].pos; // remember the path the raindrop takes
   }
 
   for(int i = 0; i < MAX_RAINDROPS; i++) {
@@ -258,7 +259,7 @@ void bg_rain() {
       if(raindrops[i].lightning != 0 && raindrops[i].stage == 1) {
         int x = raindrops[i].pos;
         for(int j = 1; j <= 6; j++) {
-          x -= random(2);
+          x -= random8(0,2);
           x = (x >= 0 && x < 20) ? x : 0;
           int indx = led_address[j][x];
           if(indx >= 0 && indx < NUM_LEDS) {
@@ -267,15 +268,19 @@ void bg_rain() {
           }
         }
       }
-      else if(raindrops[i].lightning != 0 && raindrops[i].stage > 1) {
+      else if(raindrops[i].lightning != 0 && raindrops[i].stage > 1 && raindrops[i].stage < 7) {
         for(int j = 0; j < 6; j++)
           leds[raindrops[i].prev_pos[j]] = CRGB::Yellow;
       }
       else { // rain
-        int x = raindrops[i].pos - random(1+raindrops[i].stage);
+        int x = raindrops[i].prev_pos[raindrops[i].stage-1] - random8(0,2);
+        x = (x >= 0 && x < 20) ? x : 0;
+        raindrops[i].prev_pos[raindrops[i].stage] = x;
         int indx = led_address[raindrops[i].stage][x];
         if(indx >= 0 && indx < NUM_LEDS)
           leds[indx] = CHSV(HUE_BLUE,255,128);
+        else 
+          raindrops[i].stage = 6;
       }
       
       raindrops[i].stage++;
@@ -292,7 +297,7 @@ void bg_rain() {
 
 
 // This one took me the longest to get working!
-#define MAX_FIREWORKS     10
+#define MAX_FIREWORKS     12
 struct firework_t {
   int pos       = -1; // LED number in last row
   int direction = 0;  // 0 is left, 1 is right
@@ -313,7 +318,7 @@ void bg_firework() {
 
   if(random8() < 24 && empty_slot != -1) {
     fireworks[empty_slot].pos       = random8(3,14); // 3--13
-    fireworks[empty_slot].stage     = 23;
+    fireworks[empty_slot].stage     = 24;
     fireworks[empty_slot].direction = random8(0,2);  // 0--1
     fireworks[empty_slot].hue       = random8();     // 0--255
     fireworks[empty_slot].height_offset = random8(0,2); // 0--1
@@ -326,14 +331,14 @@ void bg_firework() {
       int y = 2 + fireworks[i].height_offset; 
       int x = fireworks[i].pos + 4*fireworks[i].direction;
 
-      if(fireworks[i].stage == 23)
+      if(fireworks[i].stage == 24)
         leds[led_address[6][fireworks[i].pos]] = CRGB::White;
-      else if(fireworks[i].stage >= 19+fireworks[i].height_offset) {
-        int level = 6 - (23 - fireworks[i].stage);
+      else if(fireworks[i].stage >= 20+fireworks[i].height_offset) {
+        int level = 6 - (24 - fireworks[i].stage);
         leds[led_address[level][fireworks[i].pos + (6-level)*fireworks[i].direction]]     = CRGB::White;
         leds[led_address[level+1][fireworks[i].pos + (6-level+1)*fireworks[i].direction]] = CRGB::Black;
       }
-      else if(fireworks[i].stage == 18) {
+      else if(fireworks[i].stage == 18 && fireworks[i].stage == 17) {
         // explode in 6 directions from (x,y)
         leds[led_address[y][x]]      = CRGB::Black;
         leds[led_address[y-1][x+1]]  = CHSV(fireworks[i].hue,255,255);
@@ -343,7 +348,7 @@ void bg_firework() {
         leds[led_address[y][x-1]]    = CHSV(fireworks[i].hue,255,255);
         leds[led_address[y-1][x]]    = CHSV(fireworks[i].hue,255,255);
       }
-      else if(fireworks[i].stage == 17) {
+      else if(fireworks[i].stage == 16) {
         // explode in 6 directions from (x,y)
         leds[led_address[y][x]]      = CRGB::Black;
         leds[led_address[y-1][x+1]]  = CRGB::Black;
@@ -457,9 +462,9 @@ void setup()
 
   // This line sets the RTC with an explicit date & time, for example to set
   // January 21, 2014 at 3am you would call:
-  // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  rtc.adjust(DateTime(2021, 1, 05, 13, 37, 0));
   // Note: F() grabs constants from program memory (flash) rather than RAM
-  rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
+  //rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
 
   // start the LEDs task immediately
   run_later(update_LEDs,0);

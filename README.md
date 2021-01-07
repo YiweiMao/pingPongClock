@@ -16,6 +16,7 @@ Foreground Modes:
 - `T`: Single colour time mode
 - `R`: Scrolling rainbow time mode
 - `N`: No time
+- `C`: Cycle through all digits 0--9999 quickly. 
 - `is_slanted`: Option to use slanted digits or original digits (from https://www.instructables.com/Ping-Pong-Ball-LED-Clock/)
 
 Background Animation Modes:

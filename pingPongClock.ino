@@ -19,6 +19,7 @@
     - 'T': Single colour time mode
     - 'R': Scrolling rainbow time mode
     - 'N': No time
+    - 'C': Cycle through all digits 0--9999 quickly
     - is_slanted: Option to use slanted digits or original digits (from https://www.instructables.com/Ping-Pong-Ball-LED-Clock/)
 
     Background Animation Modes:
@@ -58,22 +59,23 @@ CRGB leds[NUM_LEDS];
 #define _FRAME_TIME_MS    1000/REFRESH_RATE_HZ
 
 // Global variables
-char mode       = 'N';  // 'T' time, 'R' rainbow time, 'N' no op (time doesn't show)
+char mode       = 'C';  // 'T' time, 'R' rainbow time, 'N' no op (time doesn't show), 'C' cycle through all digits
 bool is_slant   = false;
 DateTime now;           // time record
 
 // Background
-char bg_palette = 'F'; // 'R' rainbow, 'B' black, 'T' twinkle, 'F' fireworks, 'W' rain, 'H' firepit
+char bg_palette = 'B'; // 'R' rainbow, 'B' black, 'T' twinkle, 'F' fireworks, 'W' rain, 'H' firepit
 CHSV bg_colour( 64, 255, 190);
 int  bg_counter = 0;
 
 // Foreground colour
 CRGB fg_colour  = CRGB::White;
+int cycle_counter = 0; // for displaying all digits quickly 0--9999
 
 CRGB fg_palette(int indx) {
   if(indx < 0 && indx >= NUM_LEDS)
     return CRGB::Black;
-  if(mode == 'R') {
+  if(mode == 'R' || mode == 'C') {
     return CHSV((bg_colour.hue+indx)%256,bg_colour.sat,bg_colour.val);
   }
   return fg_colour;
@@ -160,7 +162,7 @@ void disp_num(int num, int offset = 0) {
 
 void disp_time(int hour, int min, int sec) {
 
-  if(mode == 'R') { // rainbow text
+  if(mode == 'R' || mode == 'C') { // rainbow text
     if(bg_counter < REFRESH_RATE_HZ/4)
       bg_counter++;
     else {
@@ -431,6 +433,13 @@ void update_LEDs() {
     FastLED.show();
   }
   else if(mode == 'N') { // no operation
+    FastLED.show();
+  }
+  else if(mode == 'C') { // cycle through all digits
+    disp_time(cycle_counter/100,cycle_counter%100,0);
+    cycle_counter++;
+    if(cycle_counter == 10000)
+      cycle_counter = 0;
     FastLED.show();
   }
   else {
